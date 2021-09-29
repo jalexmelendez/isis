@@ -92,6 +92,7 @@ Some of the use cases we might want to support include:
 
 This tutorial has worked solutions for all of these.
 
+[#exercise-2-1-refactor-simpleobject-to-petowner]
 == Exercise 2.1: Refactor `SimpleObject` to `PetOwner`
 
 To start with, let's rename the `SimpleObject` entity to `PetOwner`
@@ -121,11 +122,7 @@ These include:
 ** `SimpleModule` -> `PetsModule`
 ** `SimpleApp` -> `PetClinicApp`
 
-* the `README.adoc` has been updated and slimmed down
 
-
-
-
-Run the application and make sure it still runs fine.
+Build and run the application (note that the main class has changed) to make sure it still runs fine.
 
 

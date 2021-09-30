@@ -3,92 +3,134 @@
 :Notice: Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at. http://www.apache.org/licenses/LICENSE-2.0 . Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR  CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
 
-== Rework ``Owner``'s name (`firstName` and `lastName`)
+== Exercise 3.1: Rename PetOwner's name property
 
 In the domain we are working on, `Owner` has a `firstName` and a `lastName` property, not a single `name` property.
-Let's update `Owner` accordingly.
+
+In this exercise, we'll rename ``PetOwner``'s `name` property to be `lastName`, and change the fixture script that sets up data to something more realistic.
+
 
 
 === Solution
 
 [source,bash]
 ----
-git checkout tags/070-rework-Owners-name-firstName-and-lastName
-mvn clean package jetty:run
+git checkout tags/03-01-renames-PetOwner-name-property
+mvn clean install
+mvn -pl spring-boot:run
 ----
 
-=== Exercise
+=== Tasks
 
-* rename property `Owner#name` -> `Owner#lastName`
-* add property `Owner#firstName`:
+Checkout the solution above and review the git history to see the changes that have already been made.
+These include:
+
+* property `PetOwner#name` -> `PetOwner#lastName` renamed
+* JPA mappings updated:
+** the corresponding JPQL named queries
+** the method names of `PetOwnerRepository`
++
+This is a Spring Data repository, which uses a link:https://www.baeldung.com/spring-data-derived-queries[naming convention] to infer the queries
+
+** uniqueness constraint for `PetOwner`
+
+* the action method names of `PetOwners` domain service renamed
++
+This also requires updating the `menubars.layout.xml`, which references these action names.
+
+* updating the xref:refguide:applib:index/annotation/ActionLayout.adoc#associateWith[@ActionLayout] of the `updateName` and `delete` action methods in `PetOwner`
++
+In the UI, the buttons for these actions are located close to the renamed "lastName" property
+
+* renames `@Name` meta-annotation to `@LastName`.
++
+Meta-annotations are a useful way of eliminating duplication where the same value type appears in multiple locations, for example as both an entity property and in action parameters.
+
+Build and run the application to make sure it still runs fine.
+
+
+
+== Exercise 3.2: Add PetOwner's firstName property
+
+Now that `PetOwner` has a `lastName` property, let's also add a `firstName` property.
+We'll also update our fixture script (which sets up ``PetOwner``s) so that it is more descriptive.
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/03-02-adds-PetOwner-firstName-property
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+=== Tasks
+
+* copy `@LastName` meta-annotation to create `@FirstName`:
 +
 [source,java]
 ----
-@javax.jdo.annotations.Column(allowsNull = "false", length = 40)
-@Property
-@Getter @Setter
+@Property(maxLength = FirstName.MAX_LEN, optionality = Optionality.OPTIONAL)
+@Parameter(maxLength = FirstName.MAX_LEN, optionality = Optionality.OPTIONAL)
+@ParameterLayout(named = "First Name")
+@Target({ ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.ANNOTATION_TYPE })
+@Retention(RetentionPolicy.RUNTIME)
+public @interface FirstName {
+
+    int MAX_LEN = 40;
+}
+----
++
+Note that this property/parameter is optional.
+Its parameter name has also been updated.
+
+
+* add a new (JPA nullable) property `firstName` to `PetOwner`:
++
+[source,java]
+----
+@FirstName
+@Column(length = FirstName.MAX_LEN, nullable = true)
+@Getter @Setter @ToString.Include
+@PropertyLayout(fieldSetId = "name", sequence = "2")
 private String firstName;
 ----
 
-* update the constructor:
+* add a new factory method to accept a `firstName`, and refactor the existing one:
 +
 [source,java]
 ----
-public Owner(final String lastName, final String firstName) {
-    this.lastName = lastName;
-    this.firstName = firstName;
+public static PetOwner withName(String name) {
+    return withName(name, null);
+}
+
+public static PetOwner withName(String lastName, String firstName) {
+    val simpleObject = new PetOwner();
+    simpleObject.setLastName(lastName);
+    simpleObject.setFirstName(firstName);
+    return simpleObject;
 }
 ----
+
 
 * remove `@Title` annotation from `lastName` property, and add a `title()` method to derive from both properties:
 +
 [source,java]
 ----
 public String title() {
-    return getLastName() + ", " + getFirstName().substring(0,1);
+    return getLastName() + (getFirstName() != null ? ", " + getFirstName() : "");
 }
 ----
 
 
-* update `Owner.layout.xml`
+* Update the `PetOwner_persona` enum with more realistically last names (family names).
 +
-[source,xml]
-----
-<c:property id="lastName" namedEscaped="true"/>
-<c:property id="firstName" namedEscaped="true">
-    <c:action id="updateName">
-        <c:describedAs>Updates the object's name</c:describedAs>
-    </c:action>
-</c:property>
-----
-+
-This will place the button for `updateName` underneath the `firstName` property.
+Learn more about fixture scripts xref:testing:fixtures:about.adoc[here].
 
-* update the corresponding JDO `@Unique` annotation for `Owner`:
-+
-[source,java]
-----
-@javax.jdo.annotations.Unique(name="Owner_lastName_firstName_UNQ", members = {"lastName", "firstName"})
-----
 
-* update the implementation of `Comparable` for `Owner`:
-+
-[source,java]
-----
-@Override
-public int compareTo(final Owner other) {
-    return ComparisonChain.start()
-            .compare(this.getLastName(), other.getLastName())
-            .compare(this.getFirstName(), other.getFirstName())
-            .result();
-}
-----
-+
-[NOTE]
-====
-The archetype includes a dependency on guava, which is where `ComparisonChain` comes from.
-====
 
+== Exercise 3.3: Modify PetOwner's updateName action
 
 * update `Owner#updateName` to also accept a new `firstName` parameter:
 +
@@ -130,28 +172,15 @@ public Owner create(
 }
 ----
 
-* update `Orders#findByName` to search across either the `firstName` or the `lastName`:
-+
-[source,java]
-----
-@Action(semantics = SemanticsOf.SAFE)
-@MemberOrder(sequence = "2")
-public List<Owner> findByName(
-        final String name) {
-    TypesafeQuery<Owner> q = isisJdoSupport.newTypesafeQuery(Owner.class);
-    final QOwner cand = QOwner.candidate();
-    q = q.filter(
-            cand.lastName.indexOf(q.stringParameter("name")).ne(-1).or(
-            cand.firstName.indexOf(q.stringParameter("name")).ne(-1)
-            )
-    );
-    return q.setParameter("name", name)
-            .executeList();
-}
-----
 
-* update test class `OwnerTest_updateName`
-* update test class `OwnerTest_delete`
+
+=== Optional exercises
+
+It would be nice if the `PetOwner` were identified by both their `firstName` and their `lastName`; at the moment every `PetOwner` must have a unique `lastName`.
+Or, even better would be to introduce some sort of "customerNumber" and use this as the unique identifier.
+
+
+
 
 
 

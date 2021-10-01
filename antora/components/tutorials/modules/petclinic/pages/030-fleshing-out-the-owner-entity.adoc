@@ -20,6 +20,9 @@ mvn clean install
 mvn -pl spring-boot:run
 ----
 
+Remember you can use the menu:Prototyping[Fixture Scripts] menu to setup some example data.
+
+
 === Tasks
 
 Checkout the solution above and review the git history to see the changes that have already been made.
@@ -132,16 +135,31 @@ Learn more about fixture scripts xref:testing:fixtures:about.adoc[here].
 
 == Exercise 3.3: Modify PetOwner's updateName action
 
+Although we've added a `firstName` property, currently it can't be edited.
+In this exercise we'll modify the `updateName` action to also allow the `firstName` to be changed.
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/03-03-modifies-PetOwner-updateName-action
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+=== Tasks
+
 * update `Owner#updateName` to also accept a new `firstName` parameter:
++
+image::03-03/refactor-updateName.png[width=800px]
 +
 [source,java]
 ----
-@Action(semantics = SemanticsOf.IDEMPOTENT, command = CommandReification.ENABLED, publishing = Publishing.ENABLED)
-public Owner updateName(
-        @Parameter(maxLength = 40)
-        final String lastName,
-        @Parameter(maxLength = 40)
-        final String firstName) {
+@Action(semantics = IDEMPOTENT, commandPublishing = Publishing.ENABLED, executionPublishing = Publishing.ENABLED)
+@ActionLayout(associateWith = "lastName", promptStyle = PromptStyle.INLINE)
+public PetOwner updateName(
+        @LastName final String lastName,
+        @FirstName String firstName) {
     setLastName(lastName);
     setFirstName(firstName);
     return this;
@@ -153,38 +171,194 @@ public String default1UpdateName() {
     return getFirstName();
 }
 ----
+
+* add in a "default" supporting method for the new parameter.
++
+[source,java]
+----
+public String default1UpdateName() {
+    return getFirstName();
+}
+----
 +
 The "default" supporting methods are called when the action prompt is rendered, providing the default for the "Nth" parameter of the corresponding action.
 
 
-* update `Orders#create`:
+
+
+== Exercise 3.4: Modify the menu action to create PetOwners
+
+If we want to create a new `PetOwner` and provide their `firstName`, at the moment it's a two stage process: create the `PetOwner` (using `PetOwners#create` action from the menu), then update their name (using the `updateName` action that we just looked at).
+
+In this exercise we'll simplify that workflow by allowing the `firstName` to optionally be specified during the initial create.
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/03-04-modifies-PetOwners-create-action
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+=== Tasks
+
+* update `Orders#create` action, so that the end user can specify a `firstName` when creating a new `PetOwner`:
 +
 [source,java]
 ----
 @Action(semantics = SemanticsOf.NON_IDEMPOTENT)
-@MemberOrder(sequence = "1")
-public Owner create(
-        @Parameter(maxLength = 40)
-        final String lastName,
-        @Parameter(maxLength = 40)
-        final String firstName) {
-    return repositoryService.persist(new Owner(lastName, firstName));
+@ActionLayout(promptStyle = PromptStyle.DIALOG_SIDEBAR)
+public PetOwner create(
+        @LastName final String lastName,
+        @FirstName final String firstName) {
+    return repositoryService.persist(PetOwner.withName(lastName, firstName));
 }
 ----
 
 
-
-=== Optional exercises
+=== Optional exercise
 
 It would be nice if the `PetOwner` were identified by both their `firstName` and their `lastName`; at the moment every `PetOwner` must have a unique `lastName`.
 Or, even better would be to introduce some sort of "customerNumber" and use this as the unique identifier.
 
+If you decide to do this optional exercise, create it on a git branch so that you can resume with the main flow of exercises later.
+
+
+
+== Exercise 3.5: Initial Fixture Script
+
+As we prototype with an in-memory database, it means that we need to setup the database each time we restart the application.
+Using the menu:Prototyping[Fixture Scripts] menu to setup data saves some time, but it would nicer still if that script could be run automatically.
+We can do that by specifying a configuration property.
+
+We can also leverage link:https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.profiles[Spring Boot profiles] to keep this configuration separate.
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/03-05-initial-fixture-script
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+=== Tasks
+
+* create the following file in `src/main/resources` of the webapp (alongside the existing `application.yml` file):
++
+[source,yaml]
+.application-dev.yaml
+----
+isis:
+  testing:
+    fixtures:
+      initial-script: petclinic.webapp.application.fixture.scenarios.PetClinicDemo
+----
+
+* modify the startup of your application to enable this profile, using this system prpoerty:
++
+[source]
+----
+-Dspring.profiles.active=dev
+----
+
+When you run the application you should now find that there are 10 `PetOwner` objects already created.
+
+
+
+
+== Exercise 3.6: Prompt styles
+
+The framework provides many ways to customise the UI, either through the layout files or using the `@XxxLayout` annotations.
+Default UI conventions can also be specified using the `application.yml` configuration file.
+
+In this exercise we'll change the prompt style for both a service (menu) action, ie `PetOwners#create`, and an object action, ie `PetOwner#updateName`.
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/03-06-prompt-styles
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+=== Tasks
+
+* Service (menu) actions are always shown in a dialog, of which there are two styles: modal prompt, or sidebar.
+If not specified explicitly, they will default to dialog modal.
++
+Therefore remove the `@ActionLayout(promptStyle)` for `PetOwners#create` and confirm that the dialog is now shown as a modal prompt.
+
+* Object actions can be shown either inline or in a dialog, but default to inline.
+If forced to use a dialog, then they default to a sidebar prompt rather than a modal prompt.
++
+Therefore remove the `@ActionLayout(promptStyle)` for `PetOwner#updateName` and confirm that prompt is still inline.
+
+* Using a configuration property we can change the default for object actions to use a dialog rather than inline.
++
+using the Spring boot profile trick from before:
++
+[source,yaml]
+.application-custom.yaml
+----
+isis:
+  viewer:
+    wicket:
+      prompt-style: dialog
+----
++
+Remember to activate this new profile (`-Dspring.profiles.active=dev,custom`) and confirm that the `updateName` prompt now uses a sidebar dialog.
+
+* We can overide the default dialog style for both service and object actions using further configuration properties.
++
+Switch the defaults so that service actions prefer to use a sidebar dialog, while object actions would use a modal dialog:
++
+[source,yaml]
+.application-custom.yaml
+----
+isis:
+  viewer:
+    wicket:
+      prompt-style: dialog
+      dialog-mode: modal
+      dialog-mode-for-menu: sidebar
+----
+
+* Optional: now use `@ActionLayout(promptStyle=...)` to override these defaults.
++
+Be aware that "inline" makes no sense/is not supported for service actions.
+
+* Finish off the exercises by setting up these defaults to retain the original behaviour:
++
+[source,yaml]
+.application-custom.yaml
+----
+isis:
+  viewer:
+    wicket:
+      prompt-style: inline
+      #dialog-mode: modal   # unused if prompt-style is inline
+      dialog-mode-for-menu: sidebar
+----
 
 
 
 
 
-== Derived name property
+
+
+
+
+
+== Exercise 3.7: Derived name property
+
+UP TO HERE.
 
 The ``Owner``'s `firstName` and `lastName` properties are updated using the `updateName` action, but when the action's button is invoked, it only "replaces" the `firstName` property:
 

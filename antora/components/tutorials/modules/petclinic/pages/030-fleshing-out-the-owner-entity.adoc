@@ -351,147 +351,179 @@ isis:
 
 
 
-
-
-
-
-
 == Exercise 3.7: Derived name property
 
-UP TO HERE.
-
-The ``Owner``'s `firstName` and `lastName` properties are updated using the `updateName` action, but when the action's button is invoked, it only "replaces" the `firstName` property:
+The ``PetOwner``'s `firstName` and `lastName` properties are updated using the `updateName` action, but when the action's button is invoked, it only "replaces" the `lastName` property:
 
 image::Owner-updateName-prompt.png[width="400px",link="_images/Owner-updateName-prompt.png"]
 
-We can improve this by introducing a derived `name` property and then hiding the `firstName` and `lastName`:
+In this exercise we'll improve the UI by introducing a derived `name` property and then hiding the `firstName` and `lastName`:
 
 image::Owner-name.png[width="400px",link="_images/Owner-name.png"]
 
-And, when `Owner#updateName` is invoked, the prompt we'll see is:
+When `PetOwner#updateName` is invoked, the prompt we'll want see is:
 
 image::Owner-name-updated.png[width="400px",link="_images/Owner-name-updated.png"]
-
 
 
 === Solution
 
 [source,bash]
 ----
-git checkout tags/080-derived-name-property
-mvn clean package jetty:run
+git checkout tags/03-07-derived-PetOwner-name
+mvn clean install
+mvn -pl spring-boot:run
 ----
 
-=== Exercise
+
+=== Tasks
+
 
 * Add `getName()` as the derived `name` property:
 +
 [source,java]
 ----
-@Property(notPersisted = true)
+@Transient
+@PropertyLayout(fieldSetId = "name", sequence = "1")
 public String getName() {
     return getFirstName() + " " + getLastName();
 }
 ----
 
-* Hide the `firstName` and `lastName` properties, using `@Property(hidden=...)`:
+* Hide the `lastName` and `firstName` properties, using `@Property(hidden=...)`.
+We can also remove the `@PropertyLayout` annotation.
 +
 [source,java]
 ----
-@javax.jdo.annotations.Column(allowsNull = "false", length = 40)
+@LastName
+@Column(length = LastName.MAX_LEN, nullable = false)
+@Getter @Setter @ToString.Include
 @Property(hidden = Where.EVERYWHERE)
-@Getter @Setter
 private String lastName;
+
+@FirstName
+@Column(length = FirstName.MAX_LEN, nullable = true)
+@Getter @Setter @ToString.Include
+@Property(hidden = Where.EVERYWHERE)
+private String firstName;
 ----
 
 
-* Update the `Owner.layout.xml` layout file:
+* Update the `PetOwner#updateName` to associate with the new `name` property:
 +
 [source,xml]
 ----
-<c:property id="name" namedEscaped="true">
-    <c:action id="updateName">
-        <c:describedAs>Updates the object's name</c:describedAs>
-    </c:action>
-</c:property>
+@ActionLayout(associateWith = "name",)
+public PetOwner updateName( ... ) {}
 ----
 
 
-== Digression: Changing the App Name
+Run the application and check that it behaves as you expect.
 
-Let's remove the remaining vestiges of the "hello world" archetype, and rename our application to "pet clinic".
+However, if you now try to build the app (`mvn clean install`) then you'll hit test errors, because we have changed the visibility of the `lastName` and `firstName` properties.
 
-=== Solution
+We will be looking at tests later on, so if you want to just comment out the failing tests, then do that.
+Alternatively, here are the changes that need to be made:
 
-[source,bash]
-----
-git checkout tags/090-digression-changing-the-app-name
-mvn clean package jetty:run
-----
-
-=== Exercise
-
-Rename:
-
-* `HelloWorldModule` -> `PetClinicModule`
-
-* `HelloWorldApplication` -> `PetClinicApplication`
-
-** Also update the string literals in `newIsisWicketModule()` method
-** Also update the reference to the application class in `web.xml`.
-
-* `HelloWorldAppManifest` -> `PetClinicAppManifest`
-
-** Also update `isis.appManifest` property in the `isis.properties` file
-
-* various text references to "Hello World" or "HelloWorld" literals in `pom.xml`, `index.html` and `welcome.html` files
-
-
-== Changing the "Object Type" Class Alias
-
-The Apache Isis framework allows an optional alias to be specified for each domain class; this is called the "objectType".
-This crops up in various places, including the `menubars.layout.xml`, and the REST API.
-It can used when persisting data, eg to hold a reference to an arbitrary domain object (a "polymorphic association").
-
-It's good practice to specify an object type, because it makes refactoring easier if we subsequently move the class to another package, or rename it.
-
-
-=== Solution
-
-[source,bash]
-----
-git checkout tags/100-changing-the-object-type-class-alias
-mvn clean package jetty:run
-----
-
-=== Exercise
-
-* Update `Owners` domain service.
-The object type alias is specified in `@DomainService(objectType=...)`:
+* update the `PetOwner_IntegTest#name` nested static test class:
 +
 [source,java]
 ----
-@DomainService(
-        nature = NatureOfService.VIEW_MENU_ONLY,
-        objectType = "pets.Owners"
-)
-public class Owners { ... }
-----
+@Nested
+public static class name extends PetOwner_IntegTest {
 
-* Update `Owner` domain entity.
-The object type alias is derived from the database schema and the class's (simple) name:
+    @Test
+    public void accessible() {
+        // when
+        final String name = wrap(petOwner).getName();   // <.>
+
+        // then
+        assertThat(name).isEqualTo(petOwner.getLastName());
+    }
+
+    // <.>
+}
+----
+<.> change this line from `getLastName()` to `getName()`
+<.> delete the 'editable' test
+
+* add a new `PetOwner_IntegTest#lastName` nested static test class to check that the `lastName` property can no longer be viewed:
 +
 [source,java]
 ----
-@javax.jdo.annotations.PersistenceCapable(identityType = IdentityType.DATASTORE, schema = "pets" )
-...
-public class Owner implements Comparable<Owner> { ... }
+@Nested
+public static class lastName extends PetOwner_IntegTest {
+
+    @Test
+    public void not_accessible() {
+        // expect
+        assertThrows(HiddenException.class, ()->{
+
+            // when
+            wrap(petOwner).getLastName();
+        });
+    }
+}
+----
++
+This asserts that the `lastName` property cannot be viewed.
+
+* add a new `PetOwner_IntegTest#firstName` nested static test class to check that the `firstName` property can no longer be viewed.
++
+[source,java]
+----
+@Nested
+public static class firstName extends PetOwner_IntegTest {
+
+    @Test
+    public void not_accessible() {
+        // expect
+        assertThrows(HiddenException.class, ()->{
+
+            // when
+            wrap(petOwner).getFirstName();
+        });
+    }
+}
 ----
 
-* also, update `menubars.layout.xml`, changing "myapp.Owners" to "pets.Owners".
+* update the `PetOwner_IntegTest#updateName` nested static test class, specifically the assertion:
++
+[source,java]
+----
+@Nested
+public static class updateName extends PetOwner_IntegTest {
+
+
+    @Test
+    public void can_be_updated_directly() {
+
+        // when
+        wrap(petOwner).updateName("McAdam", "Adam");                // <.>
+        transactionService.flushTransaction();
+
+        // then
+        assertThat(petOwner.getLastName()).isEqualTo("McAdam");     // <.>
+        assertThat(petOwner.getFirstName()).isEqualTo("Adam");      // <2>
+    }
+    //...
+}
+----
+<.> provide both `lastName` and `firstName` parameters
+<.> assert on both properties.
+Note that the `petOwner` object cannot be "wrapped".
+
+In case you are wondering, the wrap method is a call to xref:refguide:applib:index/services/wrapper/WrapperFactory.adoc[WrapperFactory], which provides a proxy to the object.
+This proxy emulates the UI, in this case enforcing the "hidden" rule by throwing an exception if it would not be visible.
+For this test, we _want_ to peek under the covers to check the direct state of the entity, therefore we don't wrap the object.
+
+
+
 
 
 == Add other properties for `Owner`
+
+UP to here
 
 Let's add the two remaining properties for `Owner`.
 

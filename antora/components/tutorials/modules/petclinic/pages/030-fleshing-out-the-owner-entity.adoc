@@ -73,6 +73,7 @@ mvn -pl spring-boot:run
 * copy `@LastName` meta-annotation to create `@FirstName`:
 +
 [source,java]
+.FirstName.java
 ----
 @Property(maxLength = FirstName.MAX_LEN, optionality = Optionality.OPTIONAL)
 @Parameter(maxLength = FirstName.MAX_LEN, optionality = Optionality.OPTIONAL)
@@ -103,6 +104,7 @@ private String firstName;
 * add a new factory method to accept a `firstName`, and refactor the existing one:
 +
 [source,java]
+.PetOwner.java
 ----
 public static PetOwner withName(String name) {
     return withName(name, null);
@@ -120,6 +122,7 @@ public static PetOwner withName(String lastName, String firstName) {
 * remove `@Title` annotation from `lastName` property, and add a `title()` method to derive from both properties:
 +
 [source,java]
+.PetOwner.java
 ----
 public String title() {
     return getLastName() + (getFirstName() != null ? ", " + getFirstName() : "");
@@ -149,11 +152,12 @@ mvn -pl spring-boot:run
 
 === Tasks
 
-* update `Owner#updateName` to also accept a new `firstName` parameter:
+* update `PetOwner#updateName` to also accept a new `firstName` parameter:
 +
 image::03-03/refactor-updateName.png[width=800px]
 +
 [source,java]
+.PetOwner.java
 ----
 @Action(semantics = IDEMPOTENT, commandPublishing = Publishing.ENABLED, executionPublishing = Publishing.ENABLED)
 @ActionLayout(associateWith = "lastName", promptStyle = PromptStyle.INLINE)
@@ -175,6 +179,7 @@ public String default1UpdateName() {
 * add in a "default" supporting method for the new parameter.
 +
 [source,java]
+.PetOwner.java
 ----
 public String default1UpdateName() {
     return getFirstName();
@@ -206,6 +211,7 @@ mvn -pl spring-boot:run
 * update `Orders#create` action, so that the end user can specify a `firstName` when creating a new `PetOwner`:
 +
 [source,java]
+.PetOwners.java
 ----
 @Action(semantics = SemanticsOf.NON_IDEMPOTENT)
 @ActionLayout(promptStyle = PromptStyle.DIALOG_SIDEBAR)
@@ -382,6 +388,7 @@ mvn -pl spring-boot:run
 * Add `getName()` as the derived `name` property:
 +
 [source,java]
+.PetOwner.java
 ----
 @Transient
 @PropertyLayout(fieldSetId = "name", sequence = "1")
@@ -394,6 +401,7 @@ public String getName() {
 We can also remove the `@PropertyLayout` annotation.
 +
 [source,java]
+.PetOwner.java
 ----
 @LastName
 @Column(length = LastName.MAX_LEN, nullable = false)
@@ -428,6 +436,7 @@ Alternatively, here are the changes that need to be made:
 * update the `PetOwner_IntegTest#name` nested static test class:
 +
 [source,java]
+.PetOwner_IntegTest.java
 ----
 @Nested
 public static class name extends PetOwner_IntegTest {
@@ -450,6 +459,7 @@ public static class name extends PetOwner_IntegTest {
 * add a new `PetOwner_IntegTest#lastName` nested static test class to check that the `lastName` property can no longer be viewed:
 +
 [source,java]
+.PetOwner_IntegTest.java
 ----
 @Nested
 public static class lastName extends PetOwner_IntegTest {
@@ -471,6 +481,7 @@ This asserts that the `lastName` property cannot be viewed.
 * add a new `PetOwner_IntegTest#firstName` nested static test class to check that the `firstName` property can no longer be viewed.
 +
 [source,java]
+.PetOwner_IntegTest.java
 ----
 @Nested
 public static class firstName extends PetOwner_IntegTest {
@@ -490,6 +501,7 @@ public static class firstName extends PetOwner_IntegTest {
 * update the `PetOwner_IntegTest#updateName` nested static test class, specifically the assertion:
 +
 [source,java]
+.PetOwner_IntegTest.java
 ----
 @Nested
 public static class updateName extends PetOwner_IntegTest {
@@ -517,15 +529,22 @@ In case you are wondering, the wrap method is a call to xref:refguide:applib:ind
 This proxy emulates the UI, in this case enforcing the "hidden" rule by throwing an exception if it would not be visible.
 For this test, we _want_ to peek under the covers to check the direct state of the entity, therefore we don't wrap the object.
 
+* also update the `Smoke_IntegTest`:
++
+[source,java]
+.Smoke_IntegTest.java
+----
+...
+assertThat(wrap(fred).getName()).isEqualTo("Freddy"); // <.>
+...
+----
+<.> previously was "wrap(fred).getLastName().
 
 
 
+== Exercise 3.8: Add other properties for PetOwner
 
-== Add other properties for `Owner`
-
-UP to here
-
-Let's add the two remaining properties for `Owner`.
+Let's add the two remaining properties for `PetOwner`:
 
 [plantuml]
 ----
@@ -543,15 +562,90 @@ class Owner {
 }
 ----
 
+They are `phoneNumber` and `emailAddress`.
+
 === Solution
 
 [source,bash]
 ----
-git checkout tags/110-add-other-properties-for-Owner
-mvn clean package jetty:run
+git checkout tags/03-08-add-remaining-PetOwner-properties
+mvn clean install
+mvn -pl spring-boot:run
 ----
 
-=== Exercise
+=== Task
+
+* Create a `@PhoneNumber` meta-annotation, defined to be an editable property:
++
+[source,java]
+.PhoneNumber.java
+----
+@Property(
+        editing = Editing.ENABLED,  // <.>
+        maxLength = PhoneNumber.MAX_LEN,
+        optionality = Optionality.OPTIONAL
+)
+@Parameter(maxLength = PhoneNumber.MAX_LEN, optionality = Optionality.OPTIONAL)
+@Target({ ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.ANNOTATION_TYPE })
+@Retention(RetentionPolicy.RUNTIME)
+public @interface PhoneNumber {
+
+    int MAX_LEN = 30;
+}
+----
+<.> any properties annotated with this meta-annotation will be editable by default
+
+* Similarly, create an `@EmailAddress` meta-annotation, defined to be an editable property:
++
+[source,java]
+.EmailAddress.java
+----
+@Property(
+        editing = Editing.ENABLED,
+        maxLength = EmailAddress.MAX_LEN,
+        optionality = Optionality.OPTIONAL
+)
+@PropertyLayout(named = "E-mail")   // <.>
+@Parameter(maxLength = EmailAddress.MAX_LEN, optionality = Optionality.OPTIONAL)
+@ParameterLayout(named = "E-mail")  // <.>
+@Target({ ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.ANNOTATION_TYPE })
+@Retention(RetentionPolicy.RUNTIME)
+public @interface EmailAddress {
+
+    int MAX_LEN = 100;
+}
+----
+<.> xref:refguide:applib:index/annotation/PropertyLayout.adoc#named[@PropertyLayout#named] allows characters to be used that are not valid Java identifiers.
+<.> xref:refguide:applib:index/annotation/ParameterLayout.adoc#named[@ParameterLayout#named] - ditto.
+
+* add properties to `PetOwner`:
++
+[source,java]
+.PetOwner.java
+----
+@PhoneNumber
+@Column(length = PhoneNumber.MAX_LEN, nullable = true)
+@PropertyLayout(fieldSetId = "name", sequence = "1.5")
+@Getter @Setter
+private String phoneNumber;
+
+@EmailAddress
+@Column(length = EmailAddress.MAX_LEN, nullable = true)
+@PropertyLayout(fieldSetId = "name", sequence = "1.6")
+@Getter @Setter
+private String emailAddress;
+----
+
+
+
+
+== layout etc.
+
+Not
+
+hiding columns.
+
+
 
 * Add `phoneNumber` as an editable property and use a regex to limit the allowed characters:
 +
@@ -587,6 +681,13 @@ public String validateEmailAddress(String emailAddress) {
 Obviously in this previous case we could also have used a declarative approach, but using a "validate" method here shows that arbitrary logic can be used.
 For example, we could delegate to an injected domain service to actually validate the email.
 
+
+
+
+== introduce fieldSets
+
+
+
 * update `Owner.layout.xml`.
 +
 While we are at it, we could move the `notes` property to its own tab:
@@ -617,6 +718,8 @@ While we are at it, we could move the `notes` property to its own tab:
 resulting in:
 
 image::Owner-with-contact-details.png[width="600px",link="_images/Owner-with-contact-details.png"]
+
+
 
 
 == Using specifications to encapsulate business rules

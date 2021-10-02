@@ -152,6 +152,7 @@ A title is the identifier of a domain object for the end-user.
 For `SimpleObject`, this is defined declaratively:
 
 [source,java]
+.SimpleObject.java
 ----
 @Title
 // ... other annotations omitted ...
@@ -171,6 +172,7 @@ Typically this is static and in the same package as the class; see `SimpleObject
 * replace the `@Title` annotation with a `title()` method:
 +
 [source,java]
+.SimpleObject.java
 ----
 public String title() {
     return getName();

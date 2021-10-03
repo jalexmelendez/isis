@@ -71,7 +71,7 @@ public class ElSettings {
         val jpaProps = new HashMap<String, Object>();
 
         // setup defaults
-        jpaProps.put(PersistenceUnitProperties.WEAVING, "false");
+        jpaProps.put(PersistenceUnitProperties.WEAVINmG, "false");
         jpaProps.put(PersistenceUnitProperties.DDL_GENERATION, PersistenceUnitProperties.CREATE_OR_EXTEND);
         jpaProps.put(PersistenceUnitProperties.CDI_BEANMANAGER, new BeanManagerForEntityListeners(serviceInjectorProvider));
 

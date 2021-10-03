@@ -8,71 +8,7 @@ Let's therefore evolve the app into a slightly more interesting domain and explo
 The domain we're going to work on is a version of the venerable "Pet Clinic" app.
 Here's a sketch of (our version of) its domain:
 
-[plantuml]
-----
-hide empty members
-hide methods
-
-skinparam class {
-	BackgroundColor<<desc>> Cyan
-	BackgroundColor<<ppt>> LightGreen
-	BackgroundColor<<mi>> LightPink
-	BackgroundColor<<role>> LightYellow
-}
-
-package pets {
-
-    enum PetSpecies <<desc>> {
-        Dog
-        Cat
-        Hamster
-        Budgerigar
-    }
-
-    class Pet <<ppt>> {
-        +id
-        ..
-        #owner
-        #name
-        ..
-        -species
-        -notes
-    }
-
-
-    class PetOwner <<role>> {
-        +id
-        ..
-        #lastName
-        #firstName
-        ..
-        -phoneNumber
-        -emailAddress
-    }
-}
-
-
-package visits {
-
-    class Visit <<mi>> {
-        +id
-        ..
-        #pet
-        #visitAt: LocalDateTime
-        ..
-        -reason
-        ..
-        -cost
-        -paid: boolean
-        -outcome
-    }
-}
-
-
-PetOwner *-r--> "0..*" Pet
-Visit "   \n*" -r->  Pet
-Pet  "*" -u-> PetSpecies
-----
+include::partial$domain.adoc[]
 
 [TIP]
 ====

@@ -1,0 +1,154 @@
+= Adding the remaining classes
+
+:Notice: Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at. http://www.apache.org/licenses/LICENSE-2.0 . Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR  CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+
+ur domain model now consists of the domain class, `PetOwner` and `Pet` entities (along with the `PetSpecies`  enum).
+We still have the `Visit` entities to add:
+
+include::partial$domain.adoc[]
+
+In this set of exercises we'll focus on this final `Visit` entity.
+
+
+== Exercise 5.1: The visits module
+
+[source,bash]
+----
+git checkout tags/05-01-visits-module
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+=== Tasks
+
+* TODO
+
+
+== Exercise 5.2: Adding the Visit entity
+
+Our final entity is `Visit`.
+Let's extend our app to allow ``Visit``s to be booked from an ``PetOwner``'s ``Pet``:
+
+image::Pet-bookVisit-prompt.png[width="800px",link="_images/Pet-bookVisit-prompt.png"]
+
+returning
+
+image::Visit.png[width="800px",link="_images/Visit.png"]
+
+
+
+[source,bash]
+----
+git checkout tags/05-02-visit-entity
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+
+=== Tasks
+
+* TODO
+
+
+First let's create the `Visit` entity:
+
+* add the outline of `Visit`:
++
+[source,xml]
+----
+@javax.jdo.annotations.PersistenceCapable(identityType = IdentityType.DATASTORE, schema = "visits" )
+@javax.jdo.annotations.DatastoreIdentity(strategy = IdGeneratorStrategy.IDENTITY, column = "id")
+@javax.jdo.annotations.Version(strategy= VersionStrategy.DATE_TIME, column ="version")
+@DomainObject(auditing = Auditing.ENABLED)
+@DomainObjectLayout()  // causes UI events to be triggered
+public class Visit implements Comparable<Visit> {
+
+}
+----
+
+* add the three mandatory properties, `pet`, `visitAt` and `reason`:
++
+[source,xml]
+----
+@javax.jdo.annotations.Column(allowsNull = "false", name = "petId")
+@Property(editing = Editing.DISABLED)
+@Getter @Setter
+private Pet pet;
+
+@javax.jdo.annotations.Column(allowsNull = "false")
+@Property(editing = Editing.DISABLED)
+@Getter @Setter
+private LocalDateTime visitAt;
+
+@javax.jdo.annotations.Column(allowsNull = "false", length = 4000)
+@Property(editing = Editing.ENABLED)
+@PropertyLayout(multiLine = 5)
+@Getter @Setter
+private String reason;
+----
+
+* specify unique constraints and boilerplate for constructors, title, toString and compareTo:
++
+[source,xml]
+----
+@javax.jdo.annotations.Unique(name="Visit_visitAt_pet_UNQ", members = {"visitAt","pet"})
+@javax.jdo.annotations.Index(name="Visit_pet_visitAt_IDX", members = {"pet","visitAt"})
+//...
+public class Visit implements Comparable<Visit> {
+
+    public Visit(final Pet pet, final LocalDateTime visitAt, final String reason) {
+        this.pet = pet;
+        this.visitAt = visitAt;
+        this.reason = reason;
+    }
+
+    public String title() {
+        return String.format(
+                "%s: %s (%s)",
+                getVisitAt().toString("yyyy-MM-dd hh:mm"),
+                getPet().getOwner().getName(),
+                getPet().getName());
+    }
+
+    @Override
+    public String toString() {
+        return getVisitAt().toString("yyyy-MM-dd hh:mm");
+    }
+
+    @Override
+    public int compareTo(final Visit other) {
+        return ComparisonChain.start()
+                .compare(this.getVisitAt(), other.getVisitAt())
+                .compare(this.getPet(), other.getPet())
+                .result();
+    }
+}
+----
+
+* create a `Visit.layout.xml` layout file
+
+We also need the ability to book a `Visit` (ie create a new `Visit` entity instance).
+We'll make this a responsibility of `Pet` for now (we can always refactor later if we find a better place to do this):
+
+* add the following action to `Pet`:
++
+[source,java]
+----
+@Action(semantics = SemanticsOf.NON_IDEMPOTENT)
+public Visit bookVisit(
+        final LocalDateTime at,
+        @Parameter(maxLength = 4000)
+        @ParameterLayout(multiLine = 5)
+        final String reason) {
+    return repositoryService.persist(new Visit(this, at, reason));
+}
+
+@javax.jdo.annotations.NotPersistent
+@javax.inject.Inject
+RepositoryService repositoryService;
+----
+
+

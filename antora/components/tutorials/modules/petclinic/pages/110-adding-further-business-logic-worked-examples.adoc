@@ -5,19 +5,19 @@
 
 Let's remind ourselves of the original use cases we identified; some of these have been implemented already (admittedly, not all with tests around them):
 
-* create an `Owner` : yes, implemented
+* create an `PetOwner` : yes, implemented
 
-* add and remove ``Pet``s for said `Owner` : yes, implemented.
+* add and remove ``Pet``s for said `PetOwner` : yes, implemented.
 
 * book a `Pet` in for a `Visit`: yes, implemented.
 
 * enter an `outcome` and `cost` of a `Visit`: not yet
 
-* allow an `Owner` to pay for a `Visit`: not yet
+* allow an `PetOwner` to pay for a `Visit`: not yet
 
 * find ``Visit``s not yet paid and overdue (more than 28 days old): not yet
 
-* delete an `Owner` and its ``Pet``s and ``Visit``s, so long as there are no unpaid ``Visit``s: partly.
+* delete an `PetOwner` and its ``Pet``s and ``Visit``s, so long as there are no unpaid ``Visit``s: partly.
 We currently just delete everything.
 
 In this section we'll implement the missing functionality, along with unit or integration tests as necessary.
@@ -25,7 +25,7 @@ In this section we'll implement the missing functionality, along with unit or in
 
 == Enter an outcome
 
-An outcome for a `Visit` consists of a diagnosis, and also the cost to be paid by the ``Pet``'s `Owner`.
+An outcome for a `Visit` consists of a diagnosis, and also the cost to be paid by the ``Pet``'s `PetOwner`.
 
 image::Visit-enterOutcome.png[width="800px",link="_images/Visit-enterOutcome.png"]
 
@@ -202,7 +202,7 @@ public java.util.List<Visit> findNotPaid() {
 }
 ----
 
-* Extend `OwnerBuilderScript` so that all but the last `Visit` for each ``Owner``'s ``Pet``s has been paid.
+* Extend `PetOwnerBuilderScript` so that all but the last `Visit` for each ``PetOwner``'s ``Pet``s has been paid.
 +
 Add some further supporting methods:
 +
@@ -217,7 +217,7 @@ private BigDecimal someCost() {
 }
 ----
 +
-In the `execute(...)`, update the `for` loop so that all ``Visit``s have an outcome and all but the last (for each ``Owner``) has been paid:
+In the `execute(...)`, update the `for` loop so that all ``Visit``s have an outcome and all but the last (for each ``PetOwner``) has been paid:
 +
 [source,java]
 ----
@@ -556,7 +556,7 @@ public String cssClass() {
 ----
 
 
-== Delete an `Owner` provided no unpaid ``Visit``s
+== Delete an `PetOwner` provided no unpaid ``Visit``s
 
 === Solution
 
@@ -569,14 +569,14 @@ mvn clean package jetty:run
 
 === Exercise
 
-We don't want `Owner` (in the `pets` module) to check for unpaid ``Visit``s, because that would create a cyclic dependency between modules.
+We don't want `PetOwner` (in the `pets` module) to check for unpaid ``Visit``s, because that would create a cyclic dependency between modules.
 Instead, we'll use a subscriber in the `visits` module which can veto any attempt to delete an owner if there are unpaid visits.
 
-For this, we arrange for the `Owner` to emit an action domain event when its `delete()` action is invoked.
+For this, we arrange for the `PetOwner` to emit an action domain event when its `delete()` action is invoked.
 In fact, the event will be emitted by the framework up to five times: to check if the action is visible, if it is disabled, if it's valid, pre-execute and post-execute.
 The subscriber in the ``visits`` module will therefore potentially veto on the disable phase.
 
-* in the `Visits` repository, add `findNotPaidBy` method to find any unpaid ``Visit``s for an `Owner`:
+* in the `Visits` repository, add `findNotPaidBy` method to find any unpaid ``Visit``s for an `PetOwner`:
 +
 [source,java]
 ----
@@ -596,7 +596,7 @@ public java.util.List<Visit> findNotPaidBy(Owner owner) {
 }
 ----
 
-* update `Owner`'s `delete()` action so that it emits an action domain event.
+* update `PetOwner`'s `delete()` action so that it emits an action domain event.
 +
 [source,java]
 ----

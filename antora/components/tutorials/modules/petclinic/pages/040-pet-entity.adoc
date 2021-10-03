@@ -1,0 +1,506 @@
+= Pet entity
+
+:Notice: Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at. http://www.apache.org/licenses/LICENSE-2.0 . Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR  CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+
+Right now our domain model still only consists of the single domain class, `PetOwner`.
+We still have the `Pet` and `Visit` entities to add, along with the `PetSpecies`  enum.
+
+include::partial$domain.adoc[]
+
+In this set of exercises we'll focus on the `Pet` entity and its relationship with `PetOwner`.
+Each `PetOwner` will hold a collection of their ``Pet``s, with actions to add or remove `Pet` instances for that collection.
+
+== Exercise 4.1: Pet domain class
+
+In this exercise we'll just create the outline of the `Pet` entity, and ensure it is mapped to the database correctly.
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-01-pet-entity-key-properties
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+
+=== Tasks
+
+* create a meta-annotation `@PetName` for the Pet's name:
++
+[source,java]
+.PetName.java
+----
+@Property(maxLength = PetName.MAX_LEN, optionality = Optionality.MANDATORY)
+@Parameter(maxLength = PetName.MAX_LEN, optionality = Optionality.MANDATORY)
+@Target({ ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.ANNOTATION_TYPE })
+@Retention(RetentionPolicy.RUNTIME)
+public @interface PetName {
+
+    int MAX_LEN = 60;
+}
+----
+
+* create the `Pet` entity, using the `@PetName` meta-annotation for the `name` property:
++
+[source,java]
+----
+@Entity
+@Table(
+    schema="pets",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "Pet__owner_name__UNQ", columnNames = {"owner_id, name"})
+    }
+)
+@EntityListeners(IsisEntityListener.class)
+@DomainObject(logicalTypeName = "pets.Pet", entityChangePublishing = Publishing.ENABLED)
+@DomainObjectLayout()
+@NoArgsConstructor(access = AccessLevel.PUBLIC)
+@XmlJavaTypeAdapter(PersistentEntityAdapter.class)
+@ToString(onlyExplicitlyIncluded = true)
+public class Pet implements Comparable<Pet> {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", nullable = false)
+    @Getter @Setter
+    @PropertyLayout(fieldSetId = "metadata", sequence = "1")
+    private Long id;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    @PropertyLayout(fieldSetId = "metadata", sequence = "999")
+    @Getter @Setter
+    private long version;
+
+
+    Pet(PetOwner petOwner, String name) {
+        this.petOwner = petOwner;
+        this.name = name;
+    }
+
+
+    @JoinColumn(name = "owner_id", nullable = false)
+    @PropertyLayout(fieldSetId = "name", sequence = "1")
+    @Getter @Setter
+    private PetOwner petOwner;
+
+    @PetName
+    @Column(name = "name", length = FirstName.MAX_LEN, nullable = false)
+    @Getter @Setter
+    @PropertyLayout(fieldSetId = "name", sequence = "2")
+    private String name;
+
+
+    private final static Comparator<Pet> comparator =
+            Comparator.comparing(Pet::getPetOwner).thenComparing(Pet::getName);
+
+    @Override
+    public int compareTo(final Pet other) {
+        return comparator.compare(this, other);
+    }
+
+}
+----
+
+Run the application, and confirm that the table is created correctly using menu:Prototyping[H2 Console].
+
+
+
+== Exercise 4.2: Add PetOwner's collection of Pets
+
+At this point in our app, although the `Pet` knows its `PetOwner`, the opposite isn't true.
+In this exercise we'll add that collection:
+
+[plantuml]
+----
+include::partial$skinparam.adoc[]
+
+package pets {
+
+    class Pet <<ppt>> {
+        +id
+        ..
+        #petOwner
+        #name
+        ..
+        version
+    }
+
+    class PetOwner <<role>> {
+        +id
+        ..
+        #lastName
+        #firstName
+        ..
+        -phoneNumber
+        -emailAddress
+    }
+}
+
+
+PetOwner *-r--> "0..*" Pet
+----
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-02-PetOwner-pets-collection
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+=== Tasks
+
+* in the `PetOwner` class, add the `pets` collection:
++
+[source,java]
+----
+@OneToMany(
+        mappedBy = "petOwner",      // <.>
+        cascade = CascadeType.ALL   // <.>
+)
+@Getter
+@CollectionLayout(defaultView = "table")
+private Set<Pet> pets = new TreeSet<>();
+----
+<.> specifies a bidirectional property.
+(`Pet#petOwner` "points back to" the `PetOwner`).
+<.> Deleting an `PetOwner` will also delete any associated ``Pet``s.
++
+Run the application to check the mapping is correct
+
+* update the `PetOwner.layout.xml` file to specify the position of the `pets` collection.
+For example:
++
+[source,xml]
+.PetOwner.layout.xml
+----
+<bs3:grid>
+    <bs3:row>
+        <!--...-->
+    </bs3:row>
+    <bs3:row>
+        <bs3:col span="6">
+            <!--...-->
+        </bs3:col>
+        <bs3:col span="6">
+            <bs3:tabGroup  unreferencedCollections="true" collapseIfOne="false">
+                <bs3:tab name="Pets">                   <!--.-->
+                    <bs3:row>
+                        <bs3:col span="12">
+                            <c:collection id="pets"/>
+                        </bs3:col>
+                    </bs3:row>
+                </bs3:tab>
+            </bs3:tabGroup>
+        </bs3:col>
+    </bs3:row>
+</bs3:grid>
+----
+<.> define a tab on the right hand side to hold the `pets` collection.
++
+Run the application to confirm that the `pets` collection is visible (it won't have any `Pet` instances in it just yet).
+
+
+* Create a column order file to define the order of columns in the ``PetOwner``'s `pets` collection:
++
+[source,xml]
+.PetOwner#pets.columnOrder.txt
+----
+name
+id
+----
++
+Reload the changed classes and confirm the columns of the `pets` collection are correct.
+
+
+
+
+== Exercise 4.3: Add Pet's remaining properties
+
+[plantuml]
+----
+include::partial$skinparam.adoc[]
+
+package pets {
+
+    enum PetSpecies <<desc>> {
+        Dog
+        Cat
+        Hamster
+        Budgerigar
+    }
+
+    class Pet <<ppt>> {
+        +id
+        ..
+        #petOwner
+        #name
+        ..
+        -species
+        -notes
+        ..
+        -version
+    }
+
+}
+
+Pet  "*" -u-> PetSpecies
+----
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-03-pet-remaining-properties
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+=== Tasks
+
+* TODO
+
+* declare the `PetSpecies` enum:
++
+[source,java]
+----
+public enum PetSpecies {
+    Dog,
+    Cat,
+    Hamster,
+    Budgerigar,
+}
+----
+
+
+* add in a reference to `PetSpecies`:
++
+[source,java]
+----
+@javax.jdo.annotations.Column(allowsNull = "false")
+@Property(editing = Editing.DISABLED)
+@Getter @Setter
+private PetSpecies petSpecies;
+----
+
+* As this is mandatory, we also need to update the constructor:
++
+[source,java]
+----
+// ...
+public Pet(final PetOwner petOwner, final String name, final PetSpecies petSpecies) {
+    this.petOwner = petOwner;
+    this.name = name;
+    this.petSpecies = petSpecies;
+}
+----
+
+* finally, let's add in `notes` optional property:
++
+[source,java]
+----
+@javax.jdo.annotations.Column(allowsNull = "true", length = 4000)
+@Property(editing = Editing.ENABLED)
+@Getter @Setter
+private String notes;
+----
+
+
+
+== Exercise 4.4: Add PetOwner action to add Pets
+
+We'll make the addition (and removal) of ``Pet``s a responsibility of `PetOwner`.
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-04-PetOOwner-addPet-action
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+=== Tasks
+
+* TODO
+
+* add an `addPet` action to `PetOwner`:
++
+[source,java]
+----
+@Action(semantics = SemanticsOf.NON_IDEMPOTENT)
+public Pet addPet(final String name, final PetSpecies petSpecies) {
+    return repositoryService.persist(new Pet(this, name, petSpecies));
+}
+----
+
+
+* update the `addPet` action to associate with the `pets` collection:
++
+[source,java]
+----
+@Action(
+    semantics = SemanticsOf.NON_IDEMPOTENT,
+    associateWith = "pets"
+)
+public Pet newPet(final String name, final PetSpecies petSpecies) { ... }
+----
+
+
+
+
+== Exercise 4.5: Add Pet's UI files
+
+
+TODO
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-05-Pet-ui-files
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+=== Tasks
+
+* TODO
+
+* Add a `Pet.layout.xml` file, in the same package as `Pet`.
+
+
+* Add a `Pet.png`, in the same package as `Pet`.
+
+
+
+
+== Exercise 4.6: Update fixture script to create Pets with PetOwners
+
+Before we go any further, let's take some time out to extend our fixture so that each `PetOwner` also has some ``Pet``s.
+
+TODO
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-06-Pet-fixture-script
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+=== Tasks
+
+* TODO
+
+
+* update `RecreateOwners` by adding a `PetData` (Lombok) data class:
+
++
+[source,java]
+----
+@Data
+static class PetData {
+    private final String name;
+    private final PetSpecies petSpecies;
+}
+----
+
+* factor out a `createOwner` helper method:
++
+[source,java]
+----
+private Owner createOwner(
+        final String lastName,
+        final String firstName,
+        final String phoneNumber,
+        final PetData... pets) {
+    Owner owner = this.owners.create(lastName, firstName, phoneNumber);
+    for (PetData pet : pets) {
+        owner.newPet(pet.name, pet.petSpecies);
+    }
+    return owner;
+}
+----
+
+* and update `execute` to use both:
++
+[source,java]
+----
+@Override
+protected void execute(final ExecutionContext ec) {
+
+    isisJdoSupport.deleteAll(Pet.class);
+    isisJdoSupport.deleteAll(Owner.class);
+
+    ec.addResult(this,
+            createOwner("Smith", "John", null,
+                    new PetData("Rover", PetSpecies.Dog))
+    );
+    ec.addResult(this,
+            createOwner("Jones", "Mary", "+353 1 555 1234",
+                    new PetData("Tiddles", PetSpecies.Cat),
+                    new PetData("Harry", PetSpecies.Budgerigar)
+            ));
+    ec.addResult(this,
+            createOwner("Hughes", "Fred", "07777 987654",
+                    new PetData("Jemima", PetSpecies.Hamster)
+            ));
+}
+----
+
+* rename from `RecreateOwners` to `RecreateOwnersAndPets`
+
+
+
+
+
+
+== Exercise 4.7: Add PetOwner action to delete a Pet
+
+we will probably also need to delete an action to delete a `Pet` (though once there are associated ``Visit``s for a `Pet`, we'll need to disable this action).
+
+TODO
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-06-PetOwner-deletePet-action
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+
++
+[source,java]
+----
+@Action(
+    semantics = SemanticsOf.NON_IDEMPOTENT,
+    associateWith = "pets", associateWithSequence = "2"
+)
+public Owner removePet(Pet pet) {
+    repositoryService.removeAndFlush(pet);
+    return this;
+}
+----
+
+When the `removePet` action is invoked, note how the available ``Pet``s is restricted to those in the collection.
+This is due to the `@Action#associateWith` attribute.
+
+
+

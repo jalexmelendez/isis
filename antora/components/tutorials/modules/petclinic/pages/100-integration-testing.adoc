@@ -28,8 +28,8 @@ mvn clean package jetty:run
 
 First, the "know-how-to" responsibility:
 
-* create `OwnerBuilderScript`.
-This knows "how to" create an `Owner` and their ``Pet``s using the various injected domain services.
+* create `PetOwnerBuilderScript`.
+This knows "how to" create an `PetOwner` and their ``Pet``s using the various injected domain services.
 Using the business logic of the app to setup the data (as opposed to inserting directly in the underlying database tables) means that the fixture will remain valid even if the implementation changes:
 +
 [source,java]
@@ -100,8 +100,8 @@ This gives access to the framework's `WrapperFactory` domain service.
 
 Second, the "know-what" responsibility:
 
-* create the `Owner_enum` enum.
-The "what"s are the  enum instances, each delegating the actual creation to the `OwnerBuilderScript`:
+* create the `PetOwner_enum` enum.
+The "what"s are the  enum instances, each delegating the actual creation to the `PetOwnerBuilderScript`:
 +
 [source,java]
 ----
@@ -161,9 +161,9 @@ public class RecreateOwnersAndPets extends FixtureScript {
 ----
 
 Before we get to our integration tests there is one further refinement we can make.
-We will want to easily "look up" existing objects, so we make the `Owner_enum` implement a further interface.
+We will want to easily "look up" existing objects, so we make the `PetOwner_enum` implement a further interface.
 
-* first, extend `Owners` domain service to perform an exact lookup:
+* first, extend `PetOwners` domain service to perform an exact lookup:
 +
 [source,java]
 ----
@@ -184,7 +184,7 @@ public Owner findByLastNameAndFirstName(
 }
 ----
 
-* now let's extend `Owner_enum` to also implement `PersonaWithFinder`:
+* now let's extend `PetOwner_enum` to also implement `PersonaWithFinder`:
 +
 [source,java]
 ----
@@ -524,7 +524,7 @@ public class PetClinicModule extends ModuleAbstract {
 
 == Extend the Fixture script to set up visits
 
-Some of the functionality we want to test will require visits, but so far our fixture scripts only allow us to set up ``Owner``s and their ``Pet``s.
+Some of the functionality we want to test will require visits, but so far our fixture scripts only allow us to set up ``PetOwner``s and their ``Pet``s.
 Let's extend the fixture scripts so we can declaratively have a number of ``Visit``s for each of the ``Pet``s also.
 
 === Solution
@@ -538,7 +538,7 @@ mvn clean package jetty:run
 
 === Exercise
 
-* in `OwnerBuilderScript`
+* in `PetOwnerBuilderScript`
 
 ** inject two new domain services.
 We'll need these to compute the date of the ``Visit``s.
@@ -607,7 +607,7 @@ try {
 }
 ----
 
-* extend `Owner_enum` persona to use all new infrastructure:
+* extend `PetOwner_enum` persona to use all new infrastructure:
 +
 [source,java]
 ----

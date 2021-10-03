@@ -313,12 +313,12 @@ public Visit act(...) { ... }
 
 Mixins are a powerful technique to decouple the application, but they are only half the story.
 
-What happens if we attempt to delete an `Owner` that has associated ``Pet``s which in turn have associated ``Visit``s?
+What happens if we attempt to delete an `PetOwner` that has associated ``Pet``s which in turn have associated ``Visit``s?
 Well, the ``Pet``s will be cascade-deleted, but the ``Visit``s are not.
 This prevents the delete from occurring.
 
 What we want to happen is for the ``Visit``s also to be deleted.
-However, this can't be a responsibility of `Owner` or `Pet`, because they are not meant to "know" about the associated visits.
+However, this can't be a responsibility of `PetOwner` or `Pet`, because they are not meant to "know" about the associated visits.
 
 What we can do instead is to use domain events, and set up a subscriber domain service to do the delete of associated ``Visit``s when a `Pet` is deleted.
 
@@ -331,7 +331,7 @@ git checkout tags/250-events
 mvn clean package jetty:run
 ----
 
-To try this out, book a `Visit` for a `Pet`, then navigate back to the parent `Owner` and delete it.
+To try this out, book a `Visit` for a `Pet`, then navigate back to the parent `PetOwner` and delete it.
 All associated ``Pet``s and ``Visit``s should be deleted: the ``Pet``s because the Owner <--> Pet association is declared for cascade-delete , the ``Visit``s because of the subscriber.
 
 

@@ -842,6 +842,11 @@ Run the application; the layout should look like:
 image::03-10/fieldsets.png[width=800]
 
 
+The layout file can be reloaded dynamically (on IntelliJ, menu:Run[Debugging Actions > Reload Changed Classes]), so you can inspect any updates without having to restart the app.
+Experiment with this by moving a fieldset into a tab group, or change the width of a column).
+
+
+
 === Optional Exercise
 
 NOTE: If you decide to do this optional exercise, make the changes on a git branch so that you can resume with the main flow of exercises later.
@@ -863,14 +868,24 @@ In fact, pretty much all of the metadata in the `@XxxLayout` annotations can be 
 
 The `@PropertyLayout` annotations could then be removed.
 
-A benefit of this is that the layout file can be reloaded dynamically, so it can be faster to iterate when tweaking the UI.
+Using the layout file to specify individual properties provides even more fine-grained control when dynamically reloading, so you could for example switch the order of properties in a fieldset and inspect the changes immediately without having to restart the app.
+You might find though that the main benefit of the layout file is to declare how the different "regions" of the UI fit together in terms of rows, columns, tabs and fieldsets, and then use annotations to slot the properties/actions into those regions.
 It really is a matter of personal preference which approach you use.
 
 
 
 == Exercise 3.11: Column Orders
 
-TODO
+The home page of the webapp shows a list of all `PetOwner`s (inherited from the original simple app).
+We also see a list of `PetOwner`s if we invoke menu:Pet Owners[List All].
+
+The first is a "parented" collection (it is parented by the home page view model), the second is a standalone collection (it is returned from an action).
+
+The properties that are shown as columns that are shown is based on two different mechanisms.
+The first is whether the property is visible at all in any tables, which can be specified using `@PropertyLayout(hidden=...)` (see xref:refguide:applib:index/annotation/PropertyLayout.adoc#hidden[@PropertyLayout#hidden]).
+The second is to use a "columnOrder" file.
+
+In this exercise, we'll use the latter approach.
 
 === Solution
 
@@ -883,192 +898,44 @@ mvn -pl spring-boot:run
 
 === Task
 
-* TODO
-
-
-
-
-* Add `emailAddress` as an editable property and use a supporting `validate` method to verify the format:
+* Declare the `id` field of `PetOwner` as a property by adding a getter and other annotations:
 +
 [source,java]
+.PetOwner.java
 ----
-@javax.jdo.annotations.Column(allowsNull = "true", length = 50)
-@Property(editing = Editing.ENABLED)
-@Getter @Setter
-private String emailAddress;
-public String validateEmailAddress(String emailAddress) {
-    return emailAddress.contains("@") ? null : "Email address must contain a '@'";
-}
+@Id
+@GeneratedValue(strategy = GenerationType.AUTO)
+@Column(name = "id", nullable = false)
+@Getter @Setter                                             // <.>
+@PropertyLayout(fieldSetId = "metadata", sequence = "1")    // <.>
+private Long id;
 ----
-+
-Obviously in this previous case we could also have used a declarative approach, but using a "validate" method here shows that arbitrary logic can be used.
-For example, we could delegate to an injected domain service to actually validate the email.
+<.> makes field available as a property
+<.> positions property in the metadata fieldset (before `version`).
 
-
-
-
-== introduce fieldSets
-
-
-
-* update `Owner.layout.xml`.
-+
-While we are at it, we could move the `notes` property to its own tab:
-+
-[source,xml]
-----
-<bs3:tab name="Contact Details">
-    <bs3:row>
-        <bs3:col span="12">
-            <c:fieldSet name="Contact Details">
-                <c:property id="emailAddress"/>
-                <c:property id="phoneNumber"/>
-            </c:fieldSet>
-        </bs3:col>
-    </bs3:row>
-</bs3:tab>
-<bs3:tab name="Notes">
-    <bs3:row>
-        <bs3:col span="12">
-            <c:fieldSet name="Notes">
-                <c:property id="notes" namedEscaped="true" multiLine="10" hidden="ALL_TABLES"/>
-            </c:fieldSet>
-        </bs3:col>
-    </bs3:row>
-</bs3:tab>
-----
-+
-resulting in:
-
-image::Owner-with-contact-details.png[width="600px",link="_images/Owner-with-contact-details.png"]
-
-
-
-
-== Using specifications to encapsulate business rules
-
-When we create a new `Owner` we specify only the first and last name.
-If the owner has a phone number, then the user has to edit that property separately.
-
-Suppose we wanted to allow the user to optionally enter the phone number when the `Owner` is first created?
-That would require extending the `Owners#create(...)` action to also accept an optional "phoneNumber" parameter.
-
-However, the regex validation rule that we've specified on `Owner#phoneNmber` will need duplicating for the `phoneNumber` parameter; the framework doesn't "know" that the value is to be used to populate that particular property.
-But duplicating validation violates the single responsibility principle.
-
-Instead, we can move the validation logic into a "specification", and associate both the property and the parameter with that specification.
-
-=== Solution
-
-[source,bash]
-----
-git checkout tags/120-using-specifications-to-encapsulate-business-rules
-mvn clean package jetty:run
-----
-
-=== Exercise
-
-* factor out a `PhoneNumberSpec`:
+* update the columnOrder for standalone collections of `PetOrder`:
 +
 [source,java]
+.PetOwner.columnOrder.txt
 ----
-public static class PhoneNumberSpec extends AbstractSpecification<String> {
-    @Override
-    public String satisfiesSafely(final String phoneNumber) {
-        Matcher matcher = Pattern.compile("[+]?[0-9 ]+").matcher(phoneNumber);
-        return matcher.matches() ? null :
-                "Specify only numbers and spaces, optionally prefixed with '+'.  " +
-                "For example, '+353 1 555 1234', or '07123 456789'";
-    }
-}
+name
+id
+#version
 ----
 +
-[TIP]
-====
-In this case it isn't required, but we could if we wanted inject domain services into this specification class.
-====
+This will show only `name` and `id`; none of the other properties will be visible as columns.
 
-* refactor the `phoneNumber` property to use this spec:
+* create a new file `HomePageViewModel#objects.columnOrder.txt` (in the same package as `HomePageViewModel`) to define the columns visible in the `objects` collection of that view model:
 +
 [source,java]
+.HomePageViewModel#objects.columnOrder.txt
 ----
-@javax.jdo.annotations.Column(allowsNull = "true", length = 15)
-@Property(editing = Editing.ENABLED,
-        mustSatisfy = PhoneNumberSpec.class
-)
-@Getter @Setter
-private String phoneNumber;
+name
+id
+#version
 ----
 
-* extend the `Orders#create` action to also extend a `phoneNumber` parameter, and use the `PhoneNumberSpec` to implement the same business rule:
-+
-image::Owners-create-with-phoneNumber.png[width="400px",link="_images/Owners-create-with-phoneNumber.png"]
-+
-using this code:
-+
-[source,java]
-----
-@Action(semantics = SemanticsOf.NON_IDEMPOTENT)
-@MemberOrder(sequence = "1")
-public Owner create(
-        @Parameter(maxLength = 40)
-        final String lastName,
-        @Parameter(maxLength = 40)
-        final String firstName,
-        @Parameter(
-                mustSatisfy = Owner.PhoneNumberSpec.class,
-                maxLength = 15,
-                optionality = Optionality.OPTIONAL
-        )
-        final String phoneNumber) {
-    Owner owner = new Owner(lastName, firstName);
-    owner.setPhoneNumber(phoneNumber);
-    return repositoryService.persist(owner);
-}
-----
+* delete the (unused) `PetOwner#others.columnOrder.txt` file.
 
-
-[NOTE]
-====
-The above refactoring isn't perfect: there is still some repetition of the length of the property/parameter, for example.
-
-The next version of the framework will support custom meta-annotations which will address this.
-Then, you'll be able to write:
-
-[source,java]
-----
-@javax.jdo.annotations.Column(allowsNull = "true", length = 15)
-@Property(
-    mustSatisfy = Owner.PhoneNumberSpec.class
-)
-@Parameter(
-    mustSatisfy = Owner.PhoneNumberSpec.class,
-    maxLength = 15,
-    optionality = Optionality.OPTIONAL
-)
-public @interace @PhoneNumber {}
-----
-
-and then:
-
-[source,java]
-----
-@PhoneNumber
-@Getter @Setter
-private String phoneNumber;
-----
-
-and
-
-[source,java]
-----
-public Owner create(
-        final String lastName,
-        final String firstName,
-        @PhoneNumber
-        final String phoneNumber) { ... }
-----
-
-====
-
-
+Run the application and confirm the columns are as expected.
+You should also be able to update the files and reload changes (on IntelliJ, menu:Run[Debugging Actions > Reload Changed Classes]) and inspect the updates without having to restart the app.

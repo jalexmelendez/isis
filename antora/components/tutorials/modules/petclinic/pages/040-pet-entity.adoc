@@ -896,7 +896,42 @@ public String default0Act() {
 
 === Optional exercise
 
-TODO: use @Action(choicesFrom="pets")
+If we wanted to work with multiple instances of the `pets` collection, we can use the xref:refguide:applib-methods:prefixes.adoc#choices[choices] method using the xref:refguide:applib:index/annotation/Action.adoc#choicesFrom[@Action#choicesFrom] attribute.
+
+Add this mixin to allow multiple ``Pet``s to be removed at the same time:
+
+[source,java]
+.PetOwner_removePets.java
+----
+@Action(
+        semantics = SemanticsOf.IDEMPOTENT,
+        commandPublishing = Publishing.ENABLED,
+        executionPublishing = Publishing.ENABLED,
+        choicesFrom = "pets"                            // <.>
+)
+@ActionLayout(associateWith = "pets", sequence = "2")
+@RequiredArgsConstructor
+public class PetOwner_removePets {                      // <.>
+
+    private final PetOwner petOwner;
+
+    public PetOwner act(final List<Pet> pets) {         // <.>
+        pets.forEach(repositoryService::remove);
+        return petOwner;
+    }
+    public String disableAct() {
+        return petRepository.findByPetOwner(petOwner).isEmpty() ? "No pets" : null;
+    }
+                                                        // <.>
+    @Inject PetRepository petRepository;
+    @Inject RepositoryService repositoryService;
+}
+----
+<.> Results in checkboxes in the table, allowing the user to optionally check one or more instances before invoking the action.
+<.> Renamed as the action now works with a list of ``Pet``s
+<.> Signature changed.
+<.> The `choices` method is removed.
+
 
 
 

@@ -11,7 +11,7 @@ include::partial$domain.adoc[]
 In this set of exercises we'll focus on the `Pet` entity and its relationship with `PetOwner`.
 Each `PetOwner` will hold a collection of their ``Pet``s, with actions to add or remove `Pet` instances for that collection.
 
-== Exercise 4.1: Pet domain class
+== Exercise 4.1: Pet entity's key properties
 
 In this exercise we'll just create the outline of the `Pet` entity, and ensure it is mapped to the database correctly.
 
@@ -896,6 +896,8 @@ public String default0Act() {
 
 === Optional exercise
 
+NOTE: If you decide to do this optional exercise, make the changes on a git branch so that you can resume with the main flow of exercises later.
+
 If we wanted to work with multiple instances of the `pets` collection, we can use the xref:refguide:applib-methods:prefixes.adoc#choices[choices] method using the xref:refguide:applib:index/annotation/Action.adoc#choicesFrom[@Action#choicesFrom] attribute.
 
 Add this mixin to allow multiple ``Pet``s to be removed at the same time:
@@ -936,3 +938,43 @@ public class PetOwner_removePets {                      // <.>
 
 
 
+== Exercise 4.10: Cleanup
+
+Reviewing the contents of the `pets` module, we can see (in the solutions provided at least) that there are a few thing that still need some attention:
+
+* the classes and files for `Pet` are in the same package as for `PetOwner`; they probably should live in their own package
+* the "delete" action for `PetOwner` is not present in the UI, because its "associateWith" relates to a non-visible property
+* the "delete" action for `PetOwner` fails if there are ``Pet``s, due to a referential integrity issue.
+
+In this exercise we clean up these oversights.
+
+
+
+=== Solution
+
+[source,bash]
+----
+git checkout tags/04-10-pets-module-cleanup
+mvn clean install
+mvn -pl spring-boot:run
+----
+
+
+=== Tasks
+
+Just check out the tag above and inspect the fixes:
+
+* the `Pet` entity, `PetRepository` and related UI files have been moved to `petclinic.modules.pets.dom.pet` package
+
+* the `PetOwner_pet`, `PetOwner_addPet` and `PetOwner_removePet` mixins have also been moved.
++
+This means that `PetOwner` is actually unaware of the fact that there are associated ``Pet``s.
+This abliity to control the direction of dependencies is very useful for ensuring modularity.
+
+* the ``PetOwner``'s `delete` action has been refactored into a mixin, and also moved to the `pets` package so that it will delete the child ``Pet``s first.
++
+Also fixes tests.
+
+* the fixtures for `PetOwner` and `Pet` have also been moved into their own packages.
+
+* the tear down fixture for `PetsModule` has been updated to also delete from the `Pet` entity.

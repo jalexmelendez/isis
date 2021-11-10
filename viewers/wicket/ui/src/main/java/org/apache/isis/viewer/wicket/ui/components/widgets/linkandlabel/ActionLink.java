@@ -55,7 +55,6 @@ import org.apache.isis.viewer.wicket.ui.util.Wkt;
 
 import static org.apache.isis.commons.internal.base._Casts.castTo;
 
-import de.agilecoders.wicket.core.markup.html.bootstrap.button.Buttons;
 import lombok.NonNull;
 import lombok.val;
 
@@ -151,7 +150,7 @@ extends IndicatingAjaxLink<ManagedObject> {
     @Override
     protected void onComponentTag(final ComponentTag tag) {
         super.onComponentTag(tag);
-        Buttons.fixDisabledState(this, tag);
+        Wkt.fixDisabledState(this, tag);
     }
 
     @Override

@@ -183,8 +183,8 @@
 
 		<vaadin.version>21.0.4</vaadin.version>
 
-		<wicket.version>8.13.0</wicket.version>
-		<wicket-bootstrap.version>3.0.0-M18</wicket-bootstrap.version> <!-- de.agilecoders.wicket:wicket-bootstrap... -->
+		<wicket.version>9.6.0</wicket.version>
+		<wicket-bootstrap.version>6.0.0-M4</wicket-bootstrap.version> <!-- de.agilecoders.wicket:wicket-bootstrap... -->
 		<wicket-fullcalendar.version>4.2</wicket-fullcalendar.version>
 		<wicket-source.version>7.0.0</wicket-source.version>
 		<wicket-webjars.version>2.0.20</wicket-webjars.version>
@@ -193,7 +193,7 @@
 		<bootstrap.version>4.6.0-1</bootstrap.version>
 		<popper-js.version>1.16.1-lts</popper-js.version> <!-- org.webjars:popper-js, dictated by bootstrap.version -->
 
-		<wicketstuff.version>8.13.0</wicketstuff.version> <!-- org.wicketstuff:wicketstuff-select2 -->
+		<wicketstuff.version>9.5.0</wicketstuff.version> <!-- org.wicketstuff:wicketstuff-select2 -->
 		<wicketstuff-gmap3.version>${wicket.version}</wicketstuff-gmap3.version>
 
 		<xdocreport.version>2.0.2</xdocreport.version>

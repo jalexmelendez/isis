@@ -16,24 +16,21 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-package org.apache.isis.client.kroviz.ui.builder
+package org.apache.isis.client.kroviz.handler
 
-import org.apache.isis.client.kroviz.to.TObject
-import org.apache.isis.client.kroviz.to.bs3.TabGroup
-import io.kvision.core.Component
-import io.kvision.panel.TabPanel
+import kotlinx.serialization.json.Json
+import org.apache.isis.client.kroviz.core.aggregator.ErrorDispatcher
+import org.apache.isis.client.kroviz.to.Http401Error
+import org.apache.isis.client.kroviz.to.TransferObject
 
-class TabGroupBuilder : UiBuilder() {
+class Http401ErrorHandler : BaseHandler() {
 
-    fun create(tabGroupLayout: TabGroup, tObject: TObject, dsp: RoDisplay): Component {
-        val panel = TabPanel()
-        style(panel)
-
-        for (t in tabGroupLayout.tabList) {
-            val cpt = TabBuilder().create(t, tObject, dsp)
-            panel.addTab(t.name, cpt)
-        }
-        return panel
+    override fun doHandle() {
+        logEntry.addAggregator(ErrorDispatcher())
+        update()
     }
 
+    override fun parse(response: String): TransferObject {
+        return Json.decodeFromString(Http401Error.serializer(), response)
+    }
 }

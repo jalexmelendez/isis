@@ -16,26 +16,16 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-package org.apache.isis.core.metamodel.facets.fallback;
+package org.apache.isis.client.kroviz.snapshots.demo2_0_0
 
-import org.apache.isis.core.metamodel.facetapi.FacetHolder;
-import org.apache.isis.core.metamodel.facetapi.HasSemanticEqualityByClass;
-import org.apache.isis.core.metamodel.facets.all.help.HelpFacetAbstract;
+import org.apache.isis.client.kroviz.snapshots.Response
 
-/**
- * Has a description of <tt>null</tt>.
- */
-public class HelpFacetNone
-extends HelpFacetAbstract
-implements HasSemanticEqualityByClass {
-
-    public HelpFacetNone(final FacetHolder holder) {
-        super(null, holder, Precedence.FALLBACK);
-    }
-
-    @Override
-    public String value() {
-        return "No help available";
-    }
-
+object HTTP_ERROR_401 : Response() {
+    override val url = ""
+    override val str = """{
+        "timestamp": "2021-11-12T15:39:15.039+00:00",
+        "status": 401,
+        "error": "Unauthorized",
+        "path": "/restful/"
+}"""
 }

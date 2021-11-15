@@ -21,15 +21,16 @@ package org.apache.isis.client.kroviz.core.aggregator
 import org.apache.isis.client.kroviz.core.event.LogEntry
 import org.apache.isis.client.kroviz.core.event.ResourceSpecification
 import org.apache.isis.client.kroviz.to.HttpError
+import org.apache.isis.client.kroviz.to.HttpResponse
 import org.apache.isis.client.kroviz.ui.core.UiManager
 import org.apache.isis.client.kroviz.ui.dialog.ErrorDialog
 
 class ErrorDispatcher : BaseAggregator() {
 
     override fun update(logEntry: LogEntry, subType: String) {
-        val error = logEntry.getTransferObject() as HttpError
+        val error = logEntry.getTransferObject() as HttpResponse
         val url = logEntry.url
-        val message = error.message
+        val message = error.getMessage()
         val reSpec = ResourceSpecification(url)
         UiManager.getEventStore().fault(reSpec, message)
         ErrorDialog(logEntry).open()
